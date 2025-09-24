@@ -1,0 +1,86 @@
+# Nombre del workflow que aparecerá en la pestaña "Actions" de GitHub.
+name: CI - Build and Push to ECR
+
+# Este workflow se activa cuando se cierra un Pull Request en la rama 'develop'.
+on:
+  pull_request:
+    branches: [ develop ]
+    types: [ closed ]
+
+# Define las variables de entorno para todo el workflow.
+env:
+  # Usamos el nombre del repositorio ECR que definimos en los secrets.
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  # Definimos el tag de la imagen. Usaremos el SHA del commit para tener un identificador único.
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # Definimos un único trabajo (job) llamado 'build-and-push'.
+  build-and-push:
+    # Condición: El trabajo solo se ejecuta si el Pull Request fue fusionado (merged).
+    if: github.event.pull_request.merged == true
+    # El tipo de máquina virtual que usará GitHub para ejecutar el trabajo.
+    runs-on: ubuntu-latest
+    # Permisos necesarios para que el job pueda interactuar con AWS.
+    # NOTA: Si usas OIDC para el rol de EC2, no necesitas las claves de acceso aquí.
+    # Por simplicidad y para cubrir ambos casos, mantenemos la configuración con claves.
+    # El método OIDC es más avanzado y seguro.
+    permissions:
+      contents: read
+      id-token: write # Necesario para la autenticación con AWS OIDC (método más seguro)
+
+    steps:
+      # 1. Checkout del código: Descarga el código de tu repositorio en la máquina virtual.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar credenciales de AWS:
+      # Esta acción oficial de AWS configura las credenciales de forma segura.
+      # Usa OpenID Connect (OIDC) para evitar almacenar secretos de larga duración.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. Iniciar sesión en Amazon ECR:
+      # Obtiene las credenciales de ECR y configura Docker para poder subir imágenes.
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Construir, etiquetar y subir la imagen a ECR:
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+
+  # Nuevo trabajo para el despliegue.
+  deploy-to-ec2:
+    # Este trabajo depende de que 'build-and-push' termine exitosamente.
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Configurar la clave SSH para poder acceder a la instancia EC2.
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      # 2. Desplegar en EC2 ejecutando comandos remotos.
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
+            # Iniciar sesión en ECR en la instancia EC2
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+            # Definir la nueva imagen a usar
+            export IMAGE_URL="${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+
+            # Usar docker-compose para descargar la nueva imagen y reiniciar el servicio
+            # El comando "up -d" recreará solo los contenedores cuya imagen ha cambiado.
+            docker-compose -f ~/docker-compose.yml run --rm app image=$IMAGE_URL up -d
+          '

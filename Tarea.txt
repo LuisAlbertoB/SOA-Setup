@@ -1,0 +1,47 @@
+area: Automatización del flujo de CI/CD con Docker y AWS en la rama develop
+
+Contexto
+
+En un entorno de desarrollo profesional, el trabajo en equipo requiere mantener un flujo de integración y despliegue continuo (CI/CD) para garantizar que el código esté siempre listo para ser entregado. Esto implica no solo integrar los cambios en un repositorio compartido, sino también automatizar la construcción de contenedores, ejecutar migraciones de base de datos y desplegar en entornos de prueba o producción en la nube.
+
+Objetivo
+
+Configurar un flujo de CI/CD que permita automatizar la integración de código en la rama develop, la construcción de una imagen Docker y el despliegue en un entorno en la nube (preferentemente AWS, mediante EC2 o máquinas virtuales), incluyendo la ejecución de migraciones de base de datos.
+
+Instrucciones
+
+    Crear un repositorio en GitHub o GitLab con un proyecto de ejemplo en el lenguaje de preferencia (Java, Python o Node.js). La rama principal será main, y la rama de trabajo develop.
+
+    Configurar que solo se pueda subir código a develop mediante Pull Requests (PRs).
+
+    Proteger la rama develop para impedir subidas directas sin revisión.
+
+    Definir un pipeline de CI/CD que realice las siguientes acciones:
+    a) Construcción de la imagen Docker de la aplicación.
+    b) Publicación de la imagen en un registro de contenedores (por ejemplo, Docker Hub o Amazon ECR).
+    c) Despliegue automático en una instancia EC2 o máquina virtual con Docker instalado.
+    d) Ejecución de migraciones de base de datos al momento del despliegue.
+
+    La base de datos puede estar en la misma instancia (contenedor separado) o en un servicio administrado de AWS (ejemplo: RDS).
+
+    Documentar el proceso en un archivo README.md que incluya:
+
+        Breve explicación del pipeline.
+
+        Descripción de cómo se manejan las migraciones.
+
+        Evidencias del despliegue en AWS (capturas de pantalla o logs).
+
+        Conclusiones personales sobre el uso de CI/CD con contenedores y nube.
+
+Criterios de evaluación
+
+    20%: Correcta configuración de ramas y Pull Requests hacia develop.
+
+    30%: Pipeline funcional que construya la imagen Docker y la publique en un registro de contenedores.
+
+    20%: Despliegue exitoso en AWS (EC2 o máquina virtual).
+
+    20%: Ejecución de migraciones de base de datos.
+
+    10%: Documentación clara en el README.md con evidencias y conclusiones.

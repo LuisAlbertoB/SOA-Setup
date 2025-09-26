@@ -10,7 +10,8 @@ Configurar un flujo de CI/CD que permita automatizar la integración de código 
 
 Instrucciones
 
-    Crear un repositorio en GitHub o GitLab con un proyecto de ejemplo en el lenguaje de preferencia (Java, Python o Node.js). La rama principal será main, y la rama de trabajo develop.
+    Crear un repositorio en GitHub o GitLab con un proyecto de ejemplo en el lenguaje de preferencia (Java, Python o Node.js). 
+    La rama principal será main, y la rama de trabajo develop.
 
     Configurar que solo se pueda subir código a develop mediante Pull Requests (PRs).
 
